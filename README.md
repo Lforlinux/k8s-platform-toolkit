@@ -348,6 +348,7 @@ Applications deploy in the following order:
 ## 📚 Documentation
 
 - [ArgoCD Setup Guide](argocd/README-ArgoCD.md)
+- [ArgoCD Architecture Best Practices](docs/ARGOCD-ARCHITECTURE-BEST-PRACTICES.md) - Management cluster patterns and recommendations
 - [GitOps Setup Instructions](GITOPS-SETUP.md)
 - [Enhanced Monitoring Guide](docs/README-Enhanced-Monitoring.md)
 - [Loki Setup Guide](monitoring/loki/README.md)

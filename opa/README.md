@@ -2,47 +2,60 @@
 
 This directory contains OPA Gatekeeper policies for enforcing security and governance rules in the Kubernetes cluster.
 
-## Quick Start - Deploy Everything with Kustomize
+## Quick Start - Deploy Policies
 
-**Everything is managed via Kustomize - Gatekeeper + Policies:**
+**Prerequisite**: Gatekeeper must be installed (via Helm in `k8s-infrastructure-as-code` repo)
 
+**Deploy Policies:**
 ```bash
-# Deploy Gatekeeper + All Policies in one command
-kubectl apply -k opa/
-
-# Wait for Gatekeeper to be ready and CRDs to be established
-kubectl wait --for=condition=ready pod -l control-plane=controller-manager -n gatekeeper-system --timeout=120s
-sleep 10
-
-# If constraints failed (CRDs not ready), apply again
-kubectl apply -k opa/
+# Deploy all OPA policies (ConstraintTemplates + Constraints)
+./opa/deploy-opa-policies.sh
 ```
 
-**Delete Everything:**
+**Delete Policies:**
 ```bash
-# Delete all policies, Gatekeeper, AND namespace
-kubectl delete -k opa/
+# Delete all OPA policies
+./opa/delete-opa-policies.sh
+```
 
-# This deletes:
-# - All Constraints
-# - All ConstraintTemplates
-# - All Gatekeeper resources (Deployments, Services, RBAC, CRDs, etc.)
-# - The gatekeeper-system namespace (after all resources are removed)
-#
-# Note: Namespace deletion may take a moment as Kubernetes waits for all resources to be removed first
+**Note**: These scripts only manage policies, NOT Gatekeeper (which is managed by Helm).
+
+**Manual Deployment (Alternative):**
+```bash
+# Deploy policies manually
+kubectl apply -k opa/k8s-policy-manifest/
+
+# If constraints fail (CRDs not ready), wait and retry
+sleep 10 && kubectl apply -k opa/k8s-policy-manifest/
+
+# Delete policies manually
+kubectl delete -k opa/k8s-policy-manifest/
 ```
 
 **Note**: The Kustomize setup includes:
-- OPA Gatekeeper (namespace, CRDs, controller)
 - All ConstraintTemplates (policy definitions)
 - All Constraints (policy enforcement)
 
-**Sync Waves for ArgoCD**:
-- **Wave -1**: Gatekeeper resources (CRDs, controller) - Installs first
-- **Wave 0**: ConstraintTemplates (policy definitions) - After Gatekeeper CRDs are ready
-- **Wave 1**: Constraints (policy enforcement) - After ConstraintTemplate CRDs are ready
+**Gatekeeper**: Managed separately via Helm in `k8s-infrastructure-as-code` repo
 
-This ensures proper ordering and prevents "unknown kind" errors in ArgoCD.
+**Deployment via Kustomize**:
+**Note**: 
+- Gatekeeper and `gatekeeper-system` namespace are deployed separately via Helm in the `k8s-infrastructure-as-code` repo
+- Policies are deployed directly via `kubectl apply -k` (not via ArgoCD)
+
+**Deploy All Policies**:
+```bash
+# Deploy ConstraintTemplates and Constraints
+kubectl apply -k opa/k8s-policy-manifest/
+
+# If constraints fail (CRDs not ready), wait and apply again
+sleep 10 && kubectl apply -k opa/k8s-policy-manifest/
+```
+
+**Deployment Order**:
+1. Gatekeeper installed via Helm (in `k8s-infrastructure-as-code` repo) → CRDs available
+2. ConstraintTemplates applied → Gatekeeper creates Constraint CRDs
+3. Constraints applied → Uses the CRDs (may need to retry if CRDs not ready yet)
 
 ## Policies
 

@@ -5,17 +5,13 @@ kind: Kustomization
 # The namespace.yaml creates gatekeeper-system namespace explicitly
 
 # ConstraintTemplates and Constraints (policy definitions and enforcement)
-# Used by ArgoCD application: opa-policies
+# Deploy via: kubectl apply -k opa/k8s-policy-manifest/
 
 resources:
   # Note: namespace.yaml is excluded - Gatekeeper creates gatekeeper-system namespace during installation
   # If you need to create it manually, use: kubectl create namespace gatekeeper-system
 
-  # PreSync Hook: Wait for ConstraintTemplate CRDs before applying Constraints
-  # This runs in wave 0.5 (after ConstraintTemplates wave 0, before Constraints wave 1)
-  - pre-sync-wait-crds.yaml
-
-  # Security Policies - ConstraintTemplates (wave 0)
+  # Security Policies - ConstraintTemplates
   # These create CRDs that Constraints will use
   - constrainttemplate-require-nonroot.yaml
   - constrainttemplate-require-resource-limits.yaml
@@ -35,59 +31,12 @@ resources:
 # Note: constraint-online-boutique-nonroot.yaml (enforce mode) is excluded
 # Use switch-enforcement-mode.sh to change modes
 
-# Add sync wave annotations for ArgoCD ordering
-# Wave 0: ConstraintTemplates (policy definitions) - Creates CRDs
-# Wave 0.5: PreSync Hook waits for ConstraintTemplate CRDs to be established
-# Wave 1: Constraints (policy enforcement) - Uses the CRDs
-# This ensures ConstraintTemplate CRDs are created before Constraints try to use them
-patches:
-  # Wave 0: ConstraintTemplates (policy definitions)
-  # These create CRDs that Constraints will use
-  - patch: |-
-      - op: add
-        path: /metadata/annotations/argocd.argoproj.io~1sync-wave
-        value: "0"
-    target:
-      kind: ConstraintTemplate
-  # Wave 1: Constraints (policy enforcement)
-  # These use the CRDs created by ConstraintTemplates
-  # The PreSync hook ensures CRDs are ready before these are applied
-  - patch: |-
-      - op: add
-        path: /metadata/annotations/argocd.argoproj.io~1sync-wave
-        value: "1"
-    target:
-      kind: K8sRequiredNonRoot
-  - patch: |-
-      - op: add
-        path: /metadata/annotations/argocd.argoproj.io~1sync-wave
-        value: "1"
-    target:
-      kind: K8sRequiredResources
-  - patch: |-
-      - op: add
-        path: /metadata/annotations/argocd.argoproj.io~1sync-wave
-        value: "1"
-    target:
-      kind: K8sDisallowLatestTag
-  - patch: |-
-      - op: add
-        path: /metadata/annotations/argocd.argoproj.io~1sync-wave
-        value: "1"
-    target:
-      kind: K8sRequiredReadonlyFS
-  - patch: |-
-      - op: add
-        path: /metadata/annotations/argocd.argoproj.io~1sync-wave
-        value: "1"
-    target:
-      kind: K8sDisallowPrivileged
-  - patch: |-
-      - op: add
-        path: /metadata/annotations/argocd.argoproj.io~1sync-wave
-        value: "1"
-    target:
-      kind: K8sRequiredLabels
+# Note: Resources are applied in order automatically by Kustomize:
+# 1. ConstraintTemplates (policy definitions) - Creates CRDs
+# 2. Constraints (policy enforcement) - Uses the CRDs
+#
+# If constraints fail on first apply (CRDs not ready), wait a few seconds and apply again:
+#   sleep 10 && kubectl apply -k opa/k8s-policy-manifest/
 
 # Common labels for all resources
 labels:
